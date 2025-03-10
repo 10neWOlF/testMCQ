@@ -33,6 +33,11 @@ export default function QuizGenerator() {
   const handleFileUpload = (file: File) => {
     setUploadedFile(file);
     setCurrentStage(AppStage.Profile);
+
+    // Show file type support message for PDFs
+    if (file.type.includes("pdf") || file.name.toLowerCase().endsWith(".pdf")) {
+      console.log("PDF detected. Using PDF.js for text extraction.");
+    }
   };
 
   const handleProfileSubmit = (data: ProfileData) => {

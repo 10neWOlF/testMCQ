@@ -113,6 +113,10 @@ export async function processDocument(
       // Return mock data after a simulated delay
       return new Promise((resolve) => {
         setTimeout(() => {
+          // If there's a custom prompt, log it to show it would be used
+          if (customPrompt) {
+            console.log("Custom prompt would be used with API:", customPrompt);
+          }
           resolve(mockQuestions);
         }, 1500);
       });
@@ -161,60 +165,80 @@ export async function processDocument(
   }
 }
 
+import {
+  extractTextFromPDF,
+  extractTextFromImage,
+  extractTextFromDoc,
+} from "@/utils/fileExtractors";
+
 async function readFileContent(file: File): Promise<string> {
-  // For demonstration purposes, we'll simulate extracting text from various file types
-  // In a production app, you would use specialized libraries for each file type
+  try {
+    // Handle different file types
+    const fileType = file.type.toLowerCase();
+    const fileName = file.name.toLowerCase();
 
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-
-    reader.onload = (event) => {
-      if (event.target?.result) {
-        // For text files, return the content directly
-        if (typeof event.target.result === "string") {
-          resolve(event.target.result);
-        } else {
-          // For binary files, we'd normally use specialized libraries
-          // For this demo, we'll extract text from the file name and type as a simulation
-          const fileInfo = `
-            Document Title: ${file.name}
-            Document Type: ${file.type}
-            Document Size: ${(file.size / 1024).toFixed(2)} KB
-            
-            Sample Content (Simulated):
-            
-            This is simulated content extracted from ${file.name}. In a production environment, 
-            we would use specialized libraries like pdf.js for PDFs, tesseract.js for OCR on images, 
-            or mammoth.js for Word documents.
-            
-            For the purpose of this demo, please imagine this text represents the actual 
-            content of your document. The AI will generate questions based on this text.
-            
-            Key concepts that might be in a document like ${file.name}:
-            - Introduction to the subject matter
-            - Important definitions and terminology
-            - Core principles and methodologies
-            - Examples and case studies
-            - Conclusions and future directions
-          `;
-
-          resolve(fileInfo);
-        }
-      } else {
-        reject(new Error("Failed to read file"));
-      }
-    };
-
-    reader.onerror = () => {
-      reject(new Error("Error reading file"));
-    };
-
-    if (file.type.includes("text")) {
-      reader.readAsText(file);
-    } else {
-      // For non-text files, read as array buffer
-      // In a real app, we would process this with the appropriate library
-      reader.readAsArrayBuffer(file);
+    // PDF files
+    if (fileType.includes("pdf") || fileName.endsWith(".pdf")) {
+      return await extractTextFromPDF(file);
     }
-  });
+
+    // Image files
+    if (
+      fileType.includes("image") ||
+      /\.(jpg|jpeg|png|gif|bmp|webp)$/i.test(fileName)
+    ) {
+      return await extractTextFromImage(file);
+    }
+
+    // Word documents
+    if (
+      fileType.includes("word") ||
+      fileType.includes("docx") ||
+      fileName.endsWith(".doc") ||
+      fileName.endsWith(".docx")
+    ) {
+      return await extractTextFromDoc(file);
+    }
+
+    // Text files
+    if (fileType.includes("text") || fileName.endsWith(".txt")) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (e) => resolve((e.target?.result as string) || "");
+        reader.onerror = () => reject(new Error("Failed to read text file"));
+        reader.readAsText(file);
+      });
+    }
+
+    // For other file types, try to read as text or provide a fallback
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+
+      reader.onload = (event) => {
+        if (event.target?.result) {
+          if (typeof event.target.result === "string") {
+            resolve(event.target.result);
+          } else {
+            // Fallback for binary files we don't have specific extractors for
+            resolve(
+              `Content from ${file.name} (${file.type}) - ${(file.size / 1024).toFixed(2)} KB\n\nThis file type is not fully supported for text extraction. For best results, please upload a PDF, text file, or common document format.`,
+            );
+          }
+        } else {
+          reject(new Error("Failed to read file"));
+        }
+      };
+
+      reader.onerror = () => reject(new Error("Error reading file"));
+
+      try {
+        reader.readAsText(file);
+      } catch (e) {
+        reader.readAsArrayBuffer(file);
+      }
+    });
+  } catch (error) {
+    console.error("Error reading file content:", error);
+    return `Failed to extract content from ${file.name}. Error: ${error.message}`;
+  }
 }

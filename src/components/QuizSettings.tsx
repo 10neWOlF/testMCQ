@@ -146,6 +146,10 @@ export default function QuizSettings({
               }
               rows={3}
             />
+            <p className="text-xs text-muted-foreground mt-1">
+              You can provide additional context or specific topics to focus on.
+              The AI will use these instructions when generating questions.
+            </p>
           </div>
 
           <Button

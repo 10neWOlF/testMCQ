@@ -145,7 +145,7 @@ function createPrompt(options: GenerateQuestionsOptions): string {
 
   // Add custom prompt if provided
   if (customPrompt) {
-    prompt += `\nAdditional instructions: ${customPrompt}\n`;
+    prompt += `\nADDITIONAL INSTRUCTIONS FROM USER:\n${customPrompt}\n\nPlease follow these instructions carefully when generating the questions.\n`;
   }
 
   // Add format instructions
