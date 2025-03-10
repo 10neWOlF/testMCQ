@@ -57,9 +57,23 @@ This application allows users to upload documents and generate quizzes using AI.
    - Score calculation
    - Answer review
 
-## Mock Implementation
+## AI Implementation
 
-The current version uses mock data instead of real AI processing. In a production environment, you would integrate with an AI service to analyze documents and generate questions.
+The application can use either:
+
+1. **Mock Data** (default if no API key is provided)
+   - Pre-defined questions for demonstration purposes
+
+2. **OpenRouter with Google's Gemini 2.0 Flash model**
+   - Real AI-powered question generation
+   - Requires an OpenRouter API key
+
+### Setting up OpenRouter
+
+1. Sign up for an account at [OpenRouter](https://openrouter.ai/)
+2. Create an API key
+3. Create a `.env` file in the project root (copy from `.env.example`)
+4. Add your OpenRouter API key: `VITE_OPENROUTER_API_KEY=your_key_here`
 
 ## Future Enhancements
 

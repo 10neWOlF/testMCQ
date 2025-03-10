@@ -1,9 +1,9 @@
 // This service would handle document processing and AI question generation
 // For now, it returns mock data
 
-import { Question } from "@/components/QuestionDisplay";
-import { QuestionType } from "@/components/QuestionTypes";
+import { Question, QuestionType } from "@/types/questions";
 import { ProfileData } from "@/components/ProfileForm";
+import { generateQuestions } from "./openRouterService";
 
 // Mock data for demonstration
 export const mockQuestions: Record<QuestionType, Question[]> = {
@@ -85,13 +85,95 @@ export async function processDocument(
   file: File,
   profile?: ProfileData,
 ): Promise<Record<QuestionType, Question[]>> {
-  // In a real implementation, this would send the document to an AI service
-  // and generate questions based on the content
+  try {
+    // Check if we have an API key for OpenRouter
+    const hasApiKey = !!import.meta.env.VITE_OPENROUTER_API_KEY;
 
-  // For now, just return mock data after a simulated delay
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      resolve(mockQuestions);
-    }, 1500); // Simulate processing time
+    if (!hasApiKey) {
+      console.log("No OpenRouter API key found, using mock data");
+      // Return mock data after a simulated delay
+      return new Promise((resolve) => {
+        setTimeout(() => {
+          resolve(mockQuestions);
+        }, 1500);
+      });
+    }
+
+    // Read the file content
+    const fileContent = await readFileContent(file);
+
+    // Generate questions for each type using OpenRouter
+    const questionTypes: QuestionType[] = [
+      "mcq",
+      "fillInBlanks",
+      "trueFalse",
+      "shortAnswer",
+    ];
+
+    // Process each question type in parallel
+    const results = await Promise.all(
+      questionTypes.map(async (type) => {
+        try {
+          const questions = await generateQuestions(fileContent, profile, type);
+          return { type, questions };
+        } catch (error) {
+          console.error(`Error generating ${type} questions:`, error);
+          // Fallback to mock data for this type
+          return { type, questions: mockQuestions[type] };
+        }
+      }),
+    );
+
+    // Combine results into a record
+    const allQuestions: Record<QuestionType, Question[]> = {} as Record<
+      QuestionType,
+      Question[]
+    >;
+    results.forEach(({ type, questions }) => {
+      allQuestions[type] = questions;
+    });
+
+    return allQuestions;
+  } catch (error) {
+    console.error("Error processing document:", error);
+    // Fallback to mock data
+    return mockQuestions;
+  }
+}
+
+async function readFileContent(file: File): Promise<string> {
+  // For now, we'll just read text files and images as base64
+  // In a production app, you would use more sophisticated document parsing
+
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+
+    reader.onload = (event) => {
+      if (event.target?.result) {
+        // For text files, return the content directly
+        if (typeof event.target.result === "string") {
+          resolve(event.target.result);
+        } else {
+          // For binary files (like PDFs), we'd need more processing
+          // For now, just return a placeholder
+          resolve(
+            "[Binary file content - would be processed by document parser in production]",
+          );
+        }
+      } else {
+        reject(new Error("Failed to read file"));
+      }
+    };
+
+    reader.onerror = () => {
+      reject(new Error("Error reading file"));
+    };
+
+    if (file.type.includes("text")) {
+      reader.readAsText(file);
+    } else {
+      // For non-text files, read as data URL for now
+      reader.readAsDataURL(file);
+    }
   });
 }

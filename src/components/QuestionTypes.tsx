@@ -8,7 +8,7 @@ import {
 } from "@/components/ui/card";
 import { CheckSquare, ListChecks, ToggleLeft, Type } from "lucide-react";
 
-export type QuestionType = "mcq" | "fillInBlanks" | "trueFalse" | "shortAnswer";
+import { QuestionType } from "@/types/questions";
 
 interface QuestionTypesProps {
   onSelect: (type: QuestionType) => void;

@@ -11,16 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Textarea } from "@/components/ui/textarea";
-import { QuestionType } from "./QuestionTypes";
-
-export interface Question {
-  id: string;
-  type: QuestionType;
-  text: string;
-  options?: string[];
-  answer?: string;
-  userAnswer?: string;
-}
+import { Question, QuestionType } from "@/types/questions";
 
 interface QuestionDisplayProps {
   questions: Question[];
