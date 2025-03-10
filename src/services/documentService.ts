@@ -3,7 +3,10 @@
 
 import { Question, QuestionType } from "@/types/questions";
 import { ProfileData } from "@/components/ProfileForm";
-import { generateQuestions } from "./openRouterService";
+import {
+  generateQuestions,
+  GenerateQuestionsOptions,
+} from "./openRouterService";
 
 // Mock data for demonstration
 export const mockQuestions: Record<QuestionType, Question[]> = {
@@ -81,10 +84,26 @@ export const mockQuestions: Record<QuestionType, Question[]> = {
   ],
 };
 
+export interface ProcessDocumentOptions {
+  file: File;
+  profile?: ProfileData;
+  questionTypes: QuestionType[];
+  numberOfQuestions?: number;
+  difficultyLevel?: string;
+  customPrompt?: string;
+}
+
 export async function processDocument(
-  file: File,
-  profile?: ProfileData,
+  options: ProcessDocumentOptions,
 ): Promise<Record<QuestionType, Question[]>> {
+  const {
+    file,
+    profile,
+    questionTypes,
+    numberOfQuestions = 5,
+    difficultyLevel = "medium",
+    customPrompt = "",
+  } = options;
   try {
     // Check if we have an API key for OpenRouter
     const hasApiKey = !!import.meta.env.VITE_OPENROUTER_API_KEY;
@@ -102,19 +121,20 @@ export async function processDocument(
     // Read the file content
     const fileContent = await readFileContent(file);
 
-    // Generate questions for each type using OpenRouter
-    const questionTypes: QuestionType[] = [
-      "mcq",
-      "fillInBlanks",
-      "trueFalse",
-      "shortAnswer",
-    ];
+    // Use the provided question types
 
     // Process each question type in parallel
     const results = await Promise.all(
       questionTypes.map(async (type) => {
         try {
-          const questions = await generateQuestions(fileContent, profile, type);
+          const questions = await generateQuestions({
+            documentText: fileContent,
+            profile,
+            questionType: type,
+            numberOfQuestions,
+            difficultyLevel,
+            customPrompt,
+          });
           return { type, questions };
         } catch (error) {
           console.error(`Error generating ${type} questions:`, error);
@@ -142,8 +162,8 @@ export async function processDocument(
 }
 
 async function readFileContent(file: File): Promise<string> {
-  // For now, we'll just read text files and images as base64
-  // In a production app, you would use more sophisticated document parsing
+  // For demonstration purposes, we'll simulate extracting text from various file types
+  // In a production app, you would use specialized libraries for each file type
 
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -154,11 +174,31 @@ async function readFileContent(file: File): Promise<string> {
         if (typeof event.target.result === "string") {
           resolve(event.target.result);
         } else {
-          // For binary files (like PDFs), we'd need more processing
-          // For now, just return a placeholder
-          resolve(
-            "[Binary file content - would be processed by document parser in production]",
-          );
+          // For binary files, we'd normally use specialized libraries
+          // For this demo, we'll extract text from the file name and type as a simulation
+          const fileInfo = `
+            Document Title: ${file.name}
+            Document Type: ${file.type}
+            Document Size: ${(file.size / 1024).toFixed(2)} KB
+            
+            Sample Content (Simulated):
+            
+            This is simulated content extracted from ${file.name}. In a production environment, 
+            we would use specialized libraries like pdf.js for PDFs, tesseract.js for OCR on images, 
+            or mammoth.js for Word documents.
+            
+            For the purpose of this demo, please imagine this text represents the actual 
+            content of your document. The AI will generate questions based on this text.
+            
+            Key concepts that might be in a document like ${file.name}:
+            - Introduction to the subject matter
+            - Important definitions and terminology
+            - Core principles and methodologies
+            - Examples and case studies
+            - Conclusions and future directions
+          `;
+
+          resolve(fileInfo);
         }
       } else {
         reject(new Error("Failed to read file"));
@@ -172,8 +212,9 @@ async function readFileContent(file: File): Promise<string> {
     if (file.type.includes("text")) {
       reader.readAsText(file);
     } else {
-      // For non-text files, read as data URL for now
-      reader.readAsDataURL(file);
+      // For non-text files, read as array buffer
+      // In a real app, we would process this with the appropriate library
+      reader.readAsArrayBuffer(file);
     }
   });
 }

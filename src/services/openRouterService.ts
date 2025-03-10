@@ -11,11 +11,26 @@ interface OpenRouterResponse {
   }[];
 }
 
+export interface GenerateQuestionsOptions {
+  documentText: string;
+  profile?: ProfileData;
+  questionType: QuestionType;
+  numberOfQuestions?: number;
+  difficultyLevel?: string;
+  customPrompt?: string;
+}
+
 export async function generateQuestions(
-  documentText: string,
-  profile: ProfileData | undefined,
-  questionType: QuestionType,
+  options: GenerateQuestionsOptions,
 ): Promise<Question[]> {
+  const {
+    documentText,
+    profile,
+    questionType,
+    numberOfQuestions = 5,
+    difficultyLevel = "medium",
+    customPrompt = "",
+  } = options;
   try {
     // Get API key from environment variable
     const apiKey = import.meta.env.VITE_OPENROUTER_API_KEY;
@@ -25,8 +40,15 @@ export async function generateQuestions(
       throw new Error("API key is required");
     }
 
-    // Create prompt based on question type and profile
-    const prompt = createPrompt(documentText, profile, questionType);
+    // Create prompt based on options
+    const prompt = createPrompt({
+      documentText,
+      profile,
+      questionType,
+      numberOfQuestions,
+      difficultyLevel,
+      customPrompt,
+    });
 
     const response = await fetch(OPENROUTER_API_URL, {
       method: "POST",
@@ -76,11 +98,15 @@ export async function generateQuestions(
   }
 }
 
-function createPrompt(
-  documentText: string,
-  profile: ProfileData | undefined,
-  questionType: QuestionType,
-): string {
+function createPrompt(options: GenerateQuestionsOptions): string {
+  const {
+    documentText,
+    profile,
+    questionType,
+    numberOfQuestions = 5,
+    difficultyLevel = "medium",
+    customPrompt = "",
+  } = options;
   let prompt = `Generate ${
     questionType === "mcq"
       ? "multiple choice"
@@ -106,8 +132,8 @@ function createPrompt(
   // Add document content
   prompt += `DOCUMENT CONTENT:\n${documentText}\n\n`;
 
-  // Add specific instructions based on question type
-  prompt += `Please generate 5 high-quality ${
+  // Add specific instructions based on question type and difficulty
+  prompt += `Please generate ${numberOfQuestions} ${difficultyLevel} difficulty ${
     questionType === "mcq"
       ? "multiple choice"
       : questionType === "fillInBlanks"
@@ -116,6 +142,11 @@ function createPrompt(
           ? "true/false"
           : "short answer"
   } questions.\n`;
+
+  // Add custom prompt if provided
+  if (customPrompt) {
+    prompt += `\nAdditional instructions: ${customPrompt}\n`;
+  }
 
   // Add format instructions
   prompt += `Return the questions in the following JSON format:\n`;

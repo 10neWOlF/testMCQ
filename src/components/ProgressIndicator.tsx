@@ -3,7 +3,7 @@ import { Progress } from "@/components/ui/progress";
 export enum AppStage {
   Upload,
   Profile,
-  QuestionType,
+  QuizSettings,
   Questions,
   Results,
 }
@@ -18,7 +18,7 @@ export default function ProgressIndicator({
   const stages = [
     { id: AppStage.Upload, label: "Upload" },
     { id: AppStage.Profile, label: "Profile" },
-    { id: AppStage.QuestionType, label: "Question Type" },
+    { id: AppStage.QuizSettings, label: "Quiz Settings" },
     { id: AppStage.Questions, label: "Questions" },
     { id: AppStage.Results, label: "Results" },
   ];

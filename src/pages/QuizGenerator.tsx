@@ -2,19 +2,24 @@ import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import FileUploader from "@/components/FileUploader";
 import ProfileForm, { ProfileData } from "@/components/ProfileForm";
-import QuestionTypes, { QuestionType } from "@/components/QuestionTypes";
-import QuestionDisplay, { Question } from "@/components/QuestionDisplay";
+import QuizSettings from "@/components/QuizSettings";
+import type { QuizSettings as QuizSettingsType } from "@/components/QuizSettings";
+import QuestionDisplay from "@/components/QuestionDisplay";
 import ResultsDisplay from "@/components/ResultsDisplay";
 import ProgressIndicator, { AppStage } from "@/components/ProgressIndicator";
 import LoadingSpinner from "@/components/LoadingSpinner";
 
 import { processDocument } from "@/services/documentService";
+import { Question, QuestionType } from "@/types/questions";
 
 export default function QuizGenerator() {
   const [currentStage, setCurrentStage] = useState<AppStage>(AppStage.Upload);
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [profileData, setProfileData] = useState<ProfileData | null>(null);
-  const [selectedQuestionType, setSelectedQuestionType] =
+  const [quizSettings, setQuizSettings] = useState<QuizSettingsType | null>(
+    null,
+  );
+  const [activeQuestionType, setActiveQuestionType] =
     useState<QuestionType | null>(null);
   const [questions, setQuestions] = useState<Question[]>([]);
   const [answeredQuestions, setAnsweredQuestions] = useState<Question[]>([]);
@@ -32,32 +37,43 @@ export default function QuizGenerator() {
 
   const handleProfileSubmit = (data: ProfileData) => {
     setProfileData(data);
-    setCurrentStage(AppStage.QuestionType);
+    setCurrentStage(AppStage.QuizSettings);
   };
 
-  const handleQuestionTypeSelect = async (type: QuestionType) => {
-    setSelectedQuestionType(type);
+  const handleQuizSettingsSubmit = async (settings: QuizSettingsType) => {
+    setQuizSettings(settings);
 
-    if (allQuestions) {
-      // If we already have questions, use them
-      setQuestions(allQuestions[type]);
-      setCurrentStage(AppStage.Questions);
-    } else if (uploadedFile) {
-      // Otherwise process the document
+    if (uploadedFile) {
       setIsLoading(true);
       try {
-        const generatedQuestions = await processDocument(
-          uploadedFile,
-          profileData || undefined,
-        );
+        const generatedQuestions = await processDocument({
+          file: uploadedFile,
+          profile: profileData || undefined,
+          questionTypes: settings.questionTypes,
+          numberOfQuestions: settings.numberOfQuestions,
+          difficultyLevel: settings.difficultyLevel,
+          customPrompt: settings.customPrompt,
+        });
+
         setAllQuestions(generatedQuestions);
-        setQuestions(generatedQuestions[type]);
+
+        // Set the first question type as active
+        const firstType = settings.questionTypes[0];
+        setActiveQuestionType(firstType);
+        setQuestions(generatedQuestions[firstType]);
       } catch (error) {
         console.error("Error generating questions:", error);
       } finally {
         setIsLoading(false);
         setCurrentStage(AppStage.Questions);
       }
+    }
+  };
+
+  const handleQuestionTypeChange = (type: QuestionType) => {
+    if (allQuestions && allQuestions[type]) {
+      setActiveQuestionType(type);
+      setQuestions(allQuestions[type]);
     }
   };
 
@@ -86,10 +102,12 @@ export default function QuizGenerator() {
     // Start over from the beginning
     setUploadedFile(null);
     setProfileData(null);
-    setSelectedQuestionType(null);
+    setQuizSettings(null);
+    setActiveQuestionType(null);
     setQuestions([]);
     setAnsweredQuestions([]);
     setScore(0);
+    setAllQuestions(null);
     setCurrentStage(AppStage.Upload);
   };
 
@@ -124,36 +142,60 @@ export default function QuizGenerator() {
         </div>
       )}
 
-      {currentStage === AppStage.QuestionType && (
+      {currentStage === AppStage.QuizSettings && (
         <div className="space-y-6">
-          <h2 className="text-xl font-semibold">Select Question Type</h2>
+          <h2 className="text-xl font-semibold">Quiz Settings</h2>
           <p className="text-muted-foreground">
-            Choose the type of questions you want to generate.
+            Customize your quiz settings before generating questions.
           </p>
-          <QuestionTypes
-            onSelect={handleQuestionTypeSelect}
-            selectedType={selectedQuestionType || undefined}
-          />
+          <QuizSettings onSubmit={handleQuizSettingsSubmit} />
         </div>
       )}
 
-      {currentStage === AppStage.Questions && selectedQuestionType && (
-        <div className="space-y-6">
-          <h2 className="text-xl font-semibold">Answer the Questions</h2>
-          <p className="text-muted-foreground">
-            Complete all questions to see your results.
-          </p>
-          {isLoading ? (
-            <LoadingSpinner />
-          ) : (
-            <QuestionDisplay
-              questions={questions}
-              onSubmit={handleQuestionsSubmit}
-              questionType={selectedQuestionType}
-            />
-          )}
-        </div>
-      )}
+      {currentStage === AppStage.Questions &&
+        activeQuestionType &&
+        quizSettings && (
+          <div className="space-y-6">
+            <div className="flex justify-between items-center">
+              <div>
+                <h2 className="text-xl font-semibold">Answer the Questions</h2>
+                <p className="text-muted-foreground">
+                  Complete all questions to see your results.
+                </p>
+              </div>
+
+              {quizSettings.questionTypes.length > 1 && (
+                <div className="flex space-x-2">
+                  {quizSettings.questionTypes.map((type) => (
+                    <button
+                      key={type}
+                      onClick={() => handleQuestionTypeChange(type)}
+                      className={`px-3 py-1.5 text-sm rounded-md ${activeQuestionType === type ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground"}`}
+                    >
+                      {type === "mcq"
+                        ? "Multiple Choice"
+                        : type === "fillInBlanks"
+                          ? "Fill Blanks"
+                          : type === "trueFalse"
+                            ? "True/False"
+                            : "Short Answer"}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {isLoading ? (
+              <LoadingSpinner />
+            ) : (
+              <QuestionDisplay
+                questions={questions}
+                onSubmit={handleQuestionsSubmit}
+                questionType={activeQuestionType}
+              />
+            )}
+          </div>
+        )}
 
       {currentStage === AppStage.Results && (
         <div className="space-y-6">
